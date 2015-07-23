@@ -12,7 +12,7 @@ ns = {
     'gmd': 'http://www.isotc211.org/2005/gmd',
 }
 
-def go(template, img_file, title, out_file):
+def go(template, img_file, out_file, title=None):
     
     # Setup the parser and open the file
     schema_root = etree.parse(os.path.dirname(__file__) + \
@@ -36,11 +36,12 @@ def go(template, img_file, title, out_file):
     print("Adding gmd:dateStamp ", ds_text)
     ds_dt.text = ds_text
     
-    # Update the title
-    ti_cs = tree.find(".//gmd:title", ns).find("gco:CharacterString", ns)
-    ti_text = title
-    print("Adding gmd:title ", ti_text)
-    ti_cs.text = ti_text
+    # Update the title if given
+    if title is not None:
+        ti_cs = tree.find(".//gmd:title", ns).find("gco:CharacterString", ns)
+        ti_text = title
+        print("Adding gmd:title ", ti_text)
+        ti_cs.text = ti_text
     
     # Update the extent
     gdal_ds = gdal.Open(img_file)
@@ -71,8 +72,8 @@ if __name__ == "__main__":
         description='Produce ISO19139 metadata for an image using a template.')
     parser.add_argument("template", help="template ISO19139 metadata XML file")
     parser.add_argument("img_file", help="georeferenced image file")
-    parser.add_argument("title", help="Metadata title for the image")
     parser.add_argument("out_file", help="Output XML metadata file")
+    #parser.add_argument("title", help="Metadata title for the image")
     
     args = parser.parse_args()
-    go(args.template, args.img_file, args.title, args.out_file)
+    go(args.template, args.img_file, args.out_file) #, args.title)
