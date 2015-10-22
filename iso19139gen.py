@@ -6,13 +6,28 @@ import datetime
 import gdal
 import argparse
 import os.path
+import ogr
+driver = ogr.GetDriverByName("ESRI Shapefile")
 
 ns = {
     'gco': 'http://www.isotc211.org/2005/gco',
     'gmd': 'http://www.isotc211.org/2005/gmd',
 }
 
-def go(template, img_file, out_file, title=None):
+def get_extent(in_file):
+    
+    if in_file.endswith(".shp"):
+        ds = driver.Open(in_file, 0)
+        extent = ds.GetLayer().GetExtent()
+    else: # Assume it is an image
+        ds = gdal.Open(in_file)
+        geot = ds.GetGeoTransform()
+        extent = [geot[0], geot[0] + geot[1] * ds.RasterXSize, \
+            geot[3] + geot[5] * ds.RasterYSize, geot[3]]
+    ds = None
+    return extent
+
+def go(template, in_file, out_file, title=None):
     
     # Setup the parser and open the file
     schema_root = etree.parse(os.path.dirname(__file__) + \
@@ -44,13 +59,9 @@ def go(template, img_file, out_file, title=None):
         ti_cs.text = ti_text
     
     # Update the extent
-    gdal_ds = gdal.Open(img_file)
-    proj = gdal_ds.GetProjection()
-    geot = gdal_ds.GetGeoTransform()
-    extent = [geot[0], geot[0] + geot[1] * gdal_ds.RasterXSize, \
-              geot[3], geot[3] + geot[5] * gdal_ds.RasterYSize]
+    extent = get_extent(in_file)
     tags = ["westBoundLongitude", "eastBoundLongitude", \
-            "northBoundLatitude", "southBoundLatitude"]
+            "southBoundLatitude", "northBoundLatitude", ]
     for i in range(4):
         print("gmd:" + tags[i])
         bl_dec = tree.find(".//gmd:" + tags[i], ns).find("gco:Decimal", ns)
@@ -71,9 +82,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(\
         description='Produce ISO19139 metadata for an image using a template.')
     parser.add_argument("template", help="template ISO19139 metadata XML file")
-    parser.add_argument("img_file", help="georeferenced image file")
+    parser.add_argument("in_file", help="image file or shapefile")
     parser.add_argument("out_file", help="Output XML metadata file")
     #parser.add_argument("title", help="Metadata title for the image")
     
     args = parser.parse_args()
-    go(args.template, args.img_file, args.out_file) #, args.title)
+    go(args.template, args.in_file, args.out_file) #, args.title)
